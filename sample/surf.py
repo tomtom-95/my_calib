@@ -14,7 +14,7 @@ car_mask = 255 * np.concatenate((np.zeros((630, W), np.uint8), np.ones((244, W),
 def main():
   cap = cv.VideoCapture("./labeled/0.hevc")
 
-  surf = cv.xfeatures2d.SURF_create(30)
+  surf = cv.xfeatures2d.SURF_create(100)
   bf = cv.BFMatcher()
 
   ret, old_frame = cap.read()
@@ -72,10 +72,13 @@ def main():
     new_kps_coord = new_kps_coord[pose_mask == 255]
 
     # Angle estimation
+    # TODO: correct how it calculates these angles (sometimes it got confused)
     tetay_from_R = mat_helper.get_tetay_from_mat(R)
-    t = -t
-    tetay_from_t = np.arctan2(t[0], t[2])
+    tetay_from_t = np.arctan2(t[0], t[2]) + np.pi
+    tetax_from_t = np.pi - np.arctan2(t[1], t[2])
     print(tetay_from_t)
+    print(tetax_from_t)
+    print("\n")
 
     # cv.drawMatchesKnn expects list of lists as matches.
     draw_matches = []

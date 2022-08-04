@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "http://localhost:8080"
+verify_ssl = false
+name = "home"
+
+[packages]
+scipy = "*"
+scikit-build = "*"
+opencv-python = {path = "../opencv-python/dist/opencv_python-4.6.0.615f3df-cp39-cp39-macosx_12_0_arm64.whl"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"

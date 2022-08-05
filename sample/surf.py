@@ -15,7 +15,7 @@ center = np.array([W/2, H/2])
 
 class matcher:
   def __init__(self):
-    self.surf = cv.xfeatures2d.SURF_create(50)
+    self.surf = cv.xfeatures2d.SURF_create(30)
     self.bf = cv.BFMatcher()
 
   def kps_des_detect(self, frame):
@@ -36,14 +36,14 @@ class matcher:
     # test: points must not go towards the center
     good = []
     for m in matches:
-      if np.linalg.norm(old_kps[m.queryIdx].pt - center) < np.linalg.norm(new_kps[m.trainIdx].pt - center):
+      if np.linalg.norm(old_kps[m.queryIdx].pt - center) > np.linalg.norm(new_kps[m.trainIdx].pt - center):
         good.append(m)
     matches = good
 
     # test: delete points too far away to be the same point in two consecutive frames
     good = []
     for m in matches:
-      if np.linalg.norm(np.subtract(old_kps[m.queryIdx].pt, new_kps[m.trainIdx].pt)) < 20:
+      if np.linalg.norm(np.subtract(old_kps[m.queryIdx].pt, new_kps[m.trainIdx].pt)) < 25:
         good.append(m)
     matches = good
 
@@ -61,7 +61,6 @@ class drawer:
     return
 
   def draw(self, matches, frame1, kps1, frame2, kps2):
-    # draw
     draw_matches = []
     for m in matches:
       draw_matches.append([m])
@@ -71,71 +70,67 @@ class drawer:
 
 
 def main():
-  cap = cv.VideoCapture("./labeled/0.hevc")
+  cap = cv.VideoCapture("./labeled/0_reversed.mp4")
 
   Matcher = matcher()
   Drawer = drawer()
 
-  frame_cnt = 0
+  ret, start_frame = cap.read()
+  start_kps, start_des = Matcher.kps_des_detect(start_frame)
+
+  old_frame = start_frame.copy()
+  old_kps, old_des = start_kps, start_des
+
   while cap.isOpened():
-    frame_cnt += 1
-    if frame_cnt == 1:
-      ret, start_frame = cap.read()
-      start_kps, start_des = Matcher.kps_des_detect(start_frame)
-
-      old_frame = start_frame.copy()
-      old_kps, old_des = start_kps, start_des
-
     ret, new_frame = cap.read()
     new_kps, new_des = Matcher.kps_des_detect(new_frame)
 
-    if frame_cnt == 1:
-      start_matches = Matcher.frame_match(start_kps, start_des, new_kps, new_des)
-      matches = start_matches
-    else:
-      matches = Matcher.frame_match(old_kps, old_des, new_kps, new_des)
+    old_new_matches = Matcher.frame_match(old_kps, old_des, new_kps, new_des)
 
-    # I want to modify start_matches in such a way that it always has links between the
-    # start keypoints and the new keypoints
+    try: 
+      start_matches
+    except NameError:
+      start_matches = Matcher.frame_match(start_kps, start_des, new_kps, new_des)
+      old_new_matches = start_matches
+
     good_start_matches = []
-    for i, s in enumerate(start_matches):
-      for m in matches:
+    for s in start_matches:
+      for m in old_new_matches:
         if s.trainIdx == m.queryIdx:
-          dm = cv.DMatch(s.queryIdx, m.trainIdx, 0.01)
-          good_start_matches.append(dm)
+          good_start_matches.append(cv.DMatch(s.queryIdx, m.trainIdx, 0.01))
           break
     start_matches = good_start_matches
 
     # if start_matches is less than a threshold I must restart the game
-    if len(start_matches) < 100:
+    if len(start_matches) < 25:
       start_frame = old_frame.copy()
       start_kps, start_des = Matcher.kps_des_detect(start_frame)
       start_matches = Matcher.frame_match(start_kps, start_des, new_kps, new_des)
 
     # obtain coords of the matches
-    start_kps_coord = np.empty((len(start_matches),2))
-    new_kps_coord = np.empty((len(start_matches),2))
+    start_coord = np.empty((len(start_matches),2))
+    new_coord = np.empty((len(start_matches),2))
     for i, m in enumerate(start_matches):
-      start_kps_coord[i] = start_kps[m.queryIdx].pt
-      new_kps_coord[i] = new_kps[m.trainIdx].pt
+      start_coord[i] = start_kps[m.queryIdx].pt
+      new_coord[i] = new_kps[m.trainIdx].pt
     
     # Pose estimation
-    E, essential_mask = cv.findEssentialMat(start_kps_coord, new_kps_coord, intrinsic_mat)
+    E, essential_mask = cv.findEssentialMat(start_coord, new_coord, intrinsic_mat)
     essential_mask = essential_mask.reshape(-1,)
 
-    start_kps_coord = start_kps_coord[essential_mask == 1]
-    new_kps_coord = new_kps_coord[essential_mask == 1]
+    start_coord = start_coord[essential_mask == 1]
+    new_coord = new_coord[essential_mask == 1]
 
     ret, R, t, pose_mask, world_kps = \
-      cv.recoverPose(E, start_kps_coord, new_kps_coord, intrinsic_mat, 50, triangulatedPoints=None)
+      cv.recoverPose(E, start_coord, new_coord, intrinsic_mat, 50, triangulatedPoints=None)
     pose_mask = pose_mask.reshape(-1,)
 
-    start_kps_coord = start_kps_coord[pose_mask == 255]
-    new_kps_coord = new_kps_coord[pose_mask == 255]
+    start_coord = start_coord[pose_mask == 255]
+    new_coord = new_coord[pose_mask == 255]
 
-    print(t)
+    print("{:e}".format(t[1,0]))
 
-    Drawer.draw(start_matches, start_frame, start_kps, new_frame, new_kps)
+    draw_frame = Drawer.draw(start_matches, start_frame, start_kps, new_frame, new_kps)
     cv.imshow("surf", draw_frame)
     if cv.waitKey(0) & 0xff == ord("q"):
       break

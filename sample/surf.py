@@ -12,9 +12,9 @@ intrinsic_mat = np.array([[f, 0, W/2],[0, f, H/2],[0, 0, 1]])
 car_mask = 255 * np.concatenate((np.zeros((630, W), np.uint8), np.ones((244, W), np.uint8)))
 
 def main():
-  cap = cv.VideoCapture("./labeled/0.hevc")
+  cap = cv.VideoCapture("./labeled/2.hevc")
 
-  surf = cv.xfeatures2d.SURF_create(100)
+  surf = cv.xfeatures2d.SURF_create(20)
   bf = cv.BFMatcher()
 
   ret, old_frame = cap.read()
@@ -74,10 +74,10 @@ def main():
     # Angle estimation
     # TODO: correct how it calculates these angles (sometimes it got confused)
     tetay_from_R = mat_helper.get_tetay_from_mat(R)
-    tetay_from_t = np.arctan2(t[0], t[2]) + np.pi
-    tetax_from_t = np.pi - np.arctan2(t[1], t[2])
-    print(tetay_from_t)
-    print(tetax_from_t)
+    tetay_from_t = np.arctan2(t[0], t[2])[0] + np.pi
+    tetax_from_t = np.pi - np.arctan2(t[1], t[2])[0]
+    print("{:e}".format(tetay_from_t))
+    print("{:e}".format(tetax_from_t))
     print("\n")
 
     # cv.drawMatchesKnn expects list of lists as matches.

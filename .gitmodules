@@ -1,0 +1,6 @@
+[submodule "ceres_python_bindings"]
+	path = ceres_python_bindings
+	url = https://github.com/Edwinem/ceres_python_bindings
+[submodule "pixel-perfect-sfm"]
+	path = pixel-perfect-sfm
+	url = https://github.com/cvg/pixel-perfect-sfm.git
